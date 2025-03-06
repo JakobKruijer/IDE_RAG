@@ -1,0 +1,11 @@
+index_storage (full data)/
+Index_combined/
+ProRail_Data/
+Resume_Demo/
+Structured_LLM/
+20241118_Kenmerken_copy.xlsx
+20241118_Kenmerken.xlsx
+Debugging.py
+Demo.py
+devcontainer.env
+secrets.toml
