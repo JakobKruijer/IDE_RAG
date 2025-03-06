@@ -155,5 +155,5 @@ agent = OpenAIAgent.from_tools([add_tool, instruction_tool])
 #query = "Wat is de invulinstructie voor standStillDetectionInterval?"
 #instruction = get_instruction(query)
 
-instruction = agent.query("Wat is de invulinstructie voor puic?")
+instruction = agent.query("Wat is de invulinstructie voor permissionToDriveTimer?")
 print("Instructie:", instruction)

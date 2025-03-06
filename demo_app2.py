@@ -51,7 +51,7 @@ def extract_requirement_text(ovs_name, eis_number):
     First identifies the correct file based on {ovs_name} and then searches the text in pdf associated with {eis_number}."""
     dir_list = os.listdir("Data") # retreive all directories for all files in the data folder
     ovs_file = [file for file in dir_list if ovs_name in file][0] # identify the file in the data folder and return the first match
-    pdf_path = data_path + '\\' + ovs_file # set the correct file directory
+    pdf_path = data_path + '/' + ovs_file # set the correct file directory
     # return the text in {ovs_file} associated with {eis_number}
     with pdfplumber.open(pdf_path) as pdf:
         pages = pdf.pages
