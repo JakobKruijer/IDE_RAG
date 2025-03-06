@@ -22,15 +22,15 @@ st.info("LET OP: dit is een demoversie, verstrekte informatie kan onjuist zijn. 
 
 
 # load object instruction data from an Excel file
-excel_path = r"Index_invulinstructies\data\invulinstructies_formatted.xlsx"
+excel_path = "Index_invulinstructies/data/invulinstructies_formatted.xlsx"
 df = pd.read_excel(excel_path)
 df["Object"] = df["Object"].str.lower()
 
 # import pdf data path
-data_path = r"Data"
+data_path = "Data"
 
 # Lees de objectenlijst in
-df_objecten = pd.read_excel(r"Index_invulinstructies\data\invulinstructies_formatted_test.xlsx")
+df_objecten = pd.read_excel("Index_invulinstructies/data/invulinstructies_formatted_test.xlsx")
 object_list = df_objecten["Object"].astype(str).tolist()
 object_list = [obj.lower() for obj in object_list]
 
