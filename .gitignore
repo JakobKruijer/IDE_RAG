@@ -1,5 +1,5 @@
 index_storage (full data)/
-Index_combined/
+Index_subset/
 ProRail_Data/
 Resume_Demo/
 Structured_LLM/
@@ -9,3 +9,7 @@ Debugging.py
 Demo.py
 devcontainer.env
 secrets.toml
+demo_app.py
+dev.py
+Pandas_pdf_demo copy.py
+

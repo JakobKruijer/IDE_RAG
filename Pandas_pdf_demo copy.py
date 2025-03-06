@@ -25,7 +25,7 @@ df = pd.read_excel(excel_path)
 df["Object"] = df["Object"].str.lower()
 
 # import pdf data path
-data_path = r"C:\Users\JKRUIJER\OneDrive - Capgemini\Documents\Training\Python\IDE RAG\Data"
+data_path = "C:/Users/JKRUIJER/OneDrive - Capgemini/Documents/Training/Python/IDE RAG/Data"
 
 ''' Convert Excel rows into structured LlamaIndex documents & create and store Index in Index_agent_invulinstructies/storage
 # Convert Excel rows into structured LlamaIndex documents
@@ -80,7 +80,7 @@ def extract_requirement_text(ovs_name, eis_number):
     First identifies the correct file based on {ovs_name} and then searches the text in pdf associated with {eis_number}."""
     dir_list = os.listdir("Data") # retreive all directories for all files in the data folder
     ovs_file = [file for file in dir_list if ovs_name in file][0] # identify the file in the data folder and return the first match
-    pdf_path = data_path + '\\' + ovs_file # set the correct file directory
+    pdf_path = data_path + '/' + ovs_file # set the correct file directory
     # return the text in {ovs_file} associated with {eis_number}
     with pdfplumber.open(pdf_path) as pdf:
         pages = pdf.pages
@@ -155,5 +155,5 @@ agent = OpenAIAgent.from_tools([add_tool, instruction_tool])
 #query = "Wat is de invulinstructie voor standStillDetectionInterval?"
 #instruction = get_instruction(query)
 
-instruction = agent.query("Wat is de invulinstructie voor permissionToDriveTimer?")
+instruction = agent.query("Wat is de invulinstructie voor standStillDetectionInterval?")
 print("Instructie:", instruction)
