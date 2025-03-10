@@ -20,7 +20,6 @@ st.set_page_config(page_title="BID Manager Assistant", page_icon="🤖", layout=
 st.title("BID Manager Assistent")
 st.info("LET OP: dit is een demoversie, verstrekte informatie kan onjuist zijn. Raadpleeg altijd de [BID manager](https://prorail.moxio.com/central/#sso/v1/authenticate/aHR0cHM6Ly9wcm9yYWlsLm1veGlvLmNvbS9iaWQvYXV0aC9zc28vdjEvcmVjZWl2ZV90b2tlbg==) voor nauwkeurige en actuele informatie.", icon="ℹ️")
 
-
 # load object instruction data from an Excel file
 excel_path = "Index_invulinstructies/data/invulinstructies_formatted.xlsx"
 df = pd.read_excel(excel_path)
@@ -62,7 +61,8 @@ def extract_requirement_text(ovs_name, eis_number):
                 tables = page.extract_tables()
                 for table in tables:
                     if eis_number in table[0][1]:
-                        return table, page_num
+                        df = pd.DataFrame(table, columns=['Index', 'Waarde']).set_index('Index')
+                        return df, page_num
         return f"Geen specifieke informatie gevonden voor eis/regel {eis_number} in {ovs_file}."
 
 # function to retrieve the instruction and referenced file name (if applicable)
@@ -98,8 +98,8 @@ def get_instruction(query):
                             eis = words[index_regel+1] 
                         else:
                             print("Geen regel of eis gevonden bij:", OVS_file_name)
-                pdf_info = extract_requirement_text(OVS_file_name, eis)
-                return instruction, OVS_file_name, pdf_info      
+                df, page_num = extract_requirement_text(OVS_file_name, eis)
+                return instruction, df, page_num      
             else:
                 return instruction
         else:
@@ -153,9 +153,25 @@ for message in st.session_state.messages:
 if st.session_state.messages[-1]["role"] != "assistant":
     with st.chat_message("assistant"):
         response_stream = st.session_state.chat_engine.stream_chat(prompt)
-        st.write_stream(response_stream.response_gen)
-        message = {"role": "assistant", "content": response_stream.response}
-        # Add response to message history
-        st.session_state.messages.append(message)
-
         
+        # Capture the response
+        response = response_stream.response
+        
+        # Check if the response contains multiple outputs
+        if isinstance(response, tuple) and len(response) == 3:
+            instruction, df, page_num = response  # Unpack
+            
+            # Display the first output as normal text
+            st.write(instruction)
+            
+            # If second output is a DataFrame, display it as a table
+            if isinstance(df, pd.DataFrame):
+                st.table(df)
+            else:
+                st.write(df)  # Otherwise, display it normally
+        else:
+            st.write(response)  # Single response case
+        
+        # Add response to message history
+        message = {"role": "assistant", "content": response if not isinstance(response, tuple) else first_output}
+        st.session_state.messages.append(message)
