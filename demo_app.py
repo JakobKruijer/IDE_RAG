@@ -100,8 +100,8 @@ def get_instruction(query):
                             eis = words[index_regel+1] 
                         else:
                             print("Geen regel of eis gevonden bij:", OVS_file_name)
-                df, page_num = extract_requirement_text(OVS_file_name, eis)
-                return instruction, df, page_num      
+                ovs_info = extract_requirement_text(OVS_file_name, eis)
+                return instruction, ovs_info    
             else:
                 return instruction
         else:
@@ -155,7 +155,26 @@ for message in st.session_state.messages:
 if st.session_state.messages[-1]["role"] != "assistant":
     with st.chat_message("assistant"):
         response_stream = st.session_state.chat_engine.stream_chat(prompt)
-        st.write_stream(response_stream.response_gen)
-        message = {"role": "assistant", "content": response_stream.response}
+        
+        # Capture the response
+        response = response_stream.response
+        
+        # Check if the response contains multiple outputs
+        if isinstance(response, tuple) and len(response) == 2:
+            first_output, second_output = response  # Unpack
+            
+            # Display the first output as normal text
+            st.write(first_output)
+            st.write(second_output)
+            
+            # If second output is a DataFrame, display it as a table
+            #if isinstance(second_output, pd.DataFrame):
+            #    st.table(second_output)
+            #else:
+            #    st.write(second_output)  # Otherwise, display it normally
+        else:
+            st.write(response)  # Single response case
+        
         # Add response to message history
+        message = {"role": "assistant", "content": response if not isinstance(response, tuple) else first_output}
         st.session_state.messages.append(message)
