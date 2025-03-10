@@ -1,15 +1,9 @@
-index_storage (full data)/
-Index_subset/
-ProRail_Data/
-Resume_Demo/
-Structured_LLM/
-20241118_Kenmerken_copy.xlsx
-20241118_Kenmerken.xlsx
-Debugging.py
-Demo.py
 devcontainer.env
 secrets.toml
-demo_app.py
 dev.py
 test.py
 demo_app copy.py
+IDE_bot.py
+.venv
+Index_subset/
+static/
