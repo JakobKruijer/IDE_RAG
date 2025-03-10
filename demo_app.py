@@ -165,6 +165,7 @@ if st.session_state.messages[-1]["role"] != "assistant":
             st.write(instruction)
             
             # If second output is a DataFrame, display it as a table
+            st.write(f"DEBUG: response type = {type(response)}, value = {response}")
             if isinstance(df, pd.DataFrame):
                 st.table(df)
             else:
@@ -173,5 +174,5 @@ if st.session_state.messages[-1]["role"] != "assistant":
             st.write(response)  # Single response case
         
         # Add response to message history
-        message = {"role": "assistant", "content": response if not isinstance(response, tuple) else first_output}
+        message = {"role": "assistant", "content": response if not isinstance(response, tuple) else instruction}
         st.session_state.messages.append(message)
