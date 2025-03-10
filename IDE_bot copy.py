@@ -1,41 +1,71 @@
 import os
-import streamlit as st
-from llama_index.core import Settings
 import pandas as pd
+from dotenv import load_dotenv
+from llama_index.core import Settings, VectorStoreIndex, StorageContext, load_index_from_storage
+from llama_index.core.query_engine import RetrieverQueryEngine
+from llama_index.core.retrievers import VectorIndexRetriever
 from llama_index.llms.openai import OpenAI
 from llama_index.agent.openai import OpenAIAgent
+from llama_index.core.schema import Document
 from llama_index.core.tools import FunctionTool
+import fitz
+import string
 from thefuzz import process
 import pdfplumber
 
-# Load secrets
-api_key = st.secrets["openai"]["api_key"]
-
-# Set OpenAI API key and settings
+# load environment variable
+load_dotenv("C:/Users/JKRUIJER/OneDrive - Capgemini/Documents/Training/Python/IDE RAG/devcontainer.env")
+api_key = os.getenv("OPENAI_API_KEY")
 os.environ["OPENAI_API_KEY"] = api_key
-Settings.llm = OpenAI(model="gpt-3.5-turbo", temperature=0, max_tokens=200)
-
-# Streamlit app settings
-st.set_page_config(page_title="BID Manager Assistant", page_icon="🤖", layout="centered")
-st.title("BID Manager Assistent")
-st.info("LET OP: dit is een demoversie, verstrekte informatie kan onjuist zijn. Raadpleeg altijd de [BID manager](https://prorail.moxio.com/central/#sso/v1/authenticate/aHR0cHM6Ly9wcm9yYWlsLm1veGlvLmNvbS9iaWQvYXV0aC9zc28vdjEvcmVjZWl2ZV90b2tlbg==) voor nauwkeurige en actuele informatie.", icon="ℹ️")
+Settings.llm = OpenAI(model="gpt-3.5-turbo", temperature=0, max_tokens=200) # low temperature for exact answers
 
 # load object instruction data from an Excel file
-excel_path = "Index_invulinstructies/data/invulinstructies_formatted.xlsx"
+excel_path = r"C:\Users\JKRUIJER\OneDrive - Capgemini\Documents\Training\Python\IDE RAG\Index_invulinstructies\data\invulinstructies_formatted.xlsx"
 df = pd.read_excel(excel_path)
 df["Object"] = df["Object"].str.lower()
 
 # import pdf data path
-data_path = "Data"
+data_path = "C:/Users/JKRUIJER/OneDrive - Capgemini/Documents/Training/Python/IDE RAG/Data"
+
+''' Convert Excel rows into structured LlamaIndex documents & create and store Index in Index_agent_invulinstructies/storage
+# Convert Excel rows into structured LlamaIndex documents
+documents = []
+for _, row in df.iterrows():
+    object_name = row["Object"].strip()
+    instruction_text = row["Invulinstructie"].strip()
+    
+    # Ensure each document is clearly labeled by object
+    doc = Document(
+        text=f"Object: {object_name}\nInvulinstructie: {instruction_text}",
+        metadata={"Object": object_name}
+    )
+    documents.append(doc)
+
+# Create index with structured documents
+index = VectorStoreIndex.from_documents(documents)
+
+# store index
+index.storage_context.persist(persist_dir="Index_agent_invulinstructies/storage")
+'''
+
+# set storage path
+index_storage_context = StorageContext.from_defaults(persist_dir="Index_invulinstructies/storage")
+
+# retrieve index
+index = load_index_from_storage(index_storage_context)
+
+# create retriever and query engine
+retriever = VectorIndexRetriever(index=index, similarity_top_k=1)  # Top 1 match
+query_engine = RetrieverQueryEngine(retriever=retriever)
 
 # Lees de objectenlijst in
-df_objecten = pd.read_excel("Index_invulinstructies/data/invulinstructies_formatted_test.xlsx")
+df_objecten = pd.read_excel(r"C:\Users\JKRUIJER\OneDrive - Capgemini\Documents\Training\Python\IDE RAG\Index_invulinstructies\data\invulinstructies_formatted_test.xlsx")
 object_list = df_objecten["Object"].astype(str).tolist()
 object_list = [obj.lower() for obj in object_list]
 
 # function to extract objects from query 
 def find_objects(user_query, object_list):
-    user_query = user_query.lower()
+    user_query.lower()
     user_query_words = user_query.split()
     matched = []
     for word in user_query_words:
@@ -70,8 +100,6 @@ def get_instruction(query):
     """Retrieves the correct fill-in instruction, including consulting the PDF if needed."""
     #query = f"Geef alleen de naam van het object voor de volgende vraag en niets anders: {query}"
     #response = query_engine.query(query)
-    df = None  # Ensure df always exists
-    page_num = None  # Also initialize page_num
     response = find_objects(query, object_list)
 
     if response:
@@ -100,8 +128,8 @@ def get_instruction(query):
                             eis = words[index_regel+1] 
                         else:
                             print("Geen regel of eis gevonden bij:", OVS_file_name)
-                df, page_num = extract_requirement_text(OVS_file_name, eis)
-                return instruction, df, page_num      
+                df2, page_num = extract_requirement_text(OVS_file_name, eis)
+                return instruction, OVS_file_name, df2, page_num      
             else:
                 return instruction
         else:
@@ -114,48 +142,19 @@ def add_numbers(a: int, b: int) -> int:
     """Adds two numbers and returns the result."""
     return a + b
 
+# setting up the tools
+instruction_tool = FunctionTool.from_defaults(fn=get_instruction, return_direct=True)
+add_tool = FunctionTool.from_defaults(fn=add_numbers, return_direct=True)
 
-# Function to load indices and create tools
-@st.cache_resource(show_spinner=True)
-def initialize_agent():
-    # Define tools
-    instruction_tool = FunctionTool.from_defaults(fn=get_instruction, return_direct=True)
-    add_tool = FunctionTool.from_defaults(fn=add_numbers, return_direct=True)
-    agent = OpenAIAgent.from_tools([add_tool, instruction_tool])
-    return agent
+# initializing agent
+agent = OpenAIAgent.from_tools([add_tool, instruction_tool])
 
-# Initialize the agent
-agent = initialize_agent()
+# example query
+# standStillDetectionInterval
+# permissionToDriveTimer
+# puic
+#query = "Wat is de invulinstructie voor standStillDetectionInterval?"
+#instruction = get_instruction(query)
 
-# Initialize the chat messages history
-if "messages" not in st.session_state.keys():  
-    st.session_state.messages = [
-        {
-            "role": "assistant",
-            "content": "Hallo! Ik ben de BID manager assistent. Stel een vraag over BID178 om te beginnen.",
-        }
-    ]
-
-# Initialize the chat agent
-if "chat_engine" not in st.session_state.keys():
-    st.session_state.chat_engine = agent
-
-# Prompt for user input and save to chat history
-if prompt := st.chat_input(
-    "Ask a question"
-):  
-    st.session_state.messages.append({"role": "user", "content": prompt})
-
-# Write message history to UI
-for message in st.session_state.messages:
-    with st.chat_message(message["role"]):
-        st.write(message["content"])
-
-# If last message is not from assistant, generate a new response
-if st.session_state.messages[-1]["role"] != "assistant":
-    with st.chat_message("assistant"):
-        response_stream = st.session_state.chat_engine.stream_chat(prompt)
-        st.write_stream(response_stream.response_gen)
-        message = {"role": "assistant", "content": response_stream.response}
-        # Add response to message history
-        st.session_state.messages.append(message)
+instruction = agent.query("Wat is de invulinstructie voor standStillDetectionInterval?")
+print("Instructie:", instruction)
