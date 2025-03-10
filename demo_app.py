@@ -150,29 +150,11 @@ for message in st.session_state.messages:
         st.write(message["content"])
 
 # If last message is not from assistant, generate a new response
+# If last message is not from assistant, generate a new response
 if st.session_state.messages[-1]["role"] != "assistant":
     with st.chat_message("assistant"):
         response_stream = st.session_state.chat_engine.stream_chat(prompt)
-        
-        # Capture the response
-        response = response_stream.response
-        
-        # Check if the response contains multiple outputs
-        if isinstance(response, tuple) and len(response) == 3:
-            instruction, df, page_num = response  # Unpack
-            
-            # Display the first output as normal text
-            st.write(instruction)
-            
-            # If second output is a DataFrame, display it as a table
-            st.write(f"DEBUG: response type = {type(response)}, value = {response}")
-            if isinstance(df, pd.DataFrame):
-                st.table(df)
-            else:
-                st.write(df)  # Otherwise, display it normally
-        else:
-            st.write(response)  # Single response case
-        
+        st.write_stream(response_stream.response_gen)
+        message = {"role": "assistant", "content": response_stream.response}
         # Add response to message history
-        message = {"role": "assistant", "content": response if not isinstance(response, tuple) else instruction}
         st.session_state.messages.append(message)
