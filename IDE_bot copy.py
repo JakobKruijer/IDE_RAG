@@ -12,6 +12,8 @@ import fitz
 import string
 from thefuzz import process
 import pdfplumber
+from llama_index.core.base.response.schema import Response
+
 
 # load environment variable
 load_dotenv("C:/Users/JKRUIJER/OneDrive - Capgemini/Documents/Training/Python/IDE RAG/devcontainer.env")
@@ -91,8 +93,9 @@ def extract_requirement_text(ovs_name, eis_number):
                 tables = page.extract_tables()
                 for table in tables:
                     if eis_number in table[0][1]:
-                        return table, page_num
-        return f"Geen specifieke informatie gevonden voor eis/regel {eis_number} in {ovs_file}."
+                        df_instructie = pd.DataFrame(table, columns=['Index', 'Waarde']).set_index('Index')
+                        return df_instructie, page
+        return (f"Geen specifieke informatie gevonden voor eis/regel {eis_number} in {ovs_file}.", None)
 
 # function to retrieve the instruction and referenced file name (if applicable)
 def get_instruction(query):
@@ -127,8 +130,12 @@ def get_instruction(query):
                             eis = words[index_regel+1] 
                         else:
                             print("Geen regel of eis gevonden bij:", OVS_file_name)
-                pdf_info = extract_requirement_text(OVS_file_name, eis)
-                return instruction, OVS_file_name, pdf_info      
+                df_instructie, page = extract_requirement_text(OVS_file_name, eis)
+                return {
+                "instruction": instruction,
+                "df": df_instructie,
+                "page": page
+            }   
             else:
                 return instruction
         else:
@@ -155,5 +162,16 @@ agent = OpenAIAgent.from_tools([add_tool, instruction_tool])
 #query = "Wat is de invulinstructie voor standStillDetectionInterval?"
 #instruction = get_instruction(query)
 
-instruction = agent.query("Wat is de invulinstructie voor standStillDetectionInterval?")
-print("Instructie:", instruction)
+#instruction = agent.query("Wat is de invulinstructie voor standStillDetectionInterval?")
+#print("Instructie:", instruction)
+#print(type(instruction))
+
+instruction_response = agent.query("Wat is de invulinstructie voor standStillDetectionInterval?")
+
+# Extract dictionary from LlamaIndex Response
+if isinstance(instruction_response, Response):
+    instruction_dict = instruction_response.get_response()  # Extract dict
+    print(type(instruction_response))
+    print(type(instruction_dict))
+    print(instruction_response.source_nodes)
+    print(instruction_response.get_formatted_sources)

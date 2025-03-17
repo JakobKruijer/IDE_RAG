@@ -7,3 +7,5 @@ IDE_bot.py
 .venv
 Index_subset/
 static/
+.env
+pyOtl/
