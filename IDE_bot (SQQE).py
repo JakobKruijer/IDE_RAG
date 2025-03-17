@@ -7,13 +7,14 @@ from llama_index.core.retrievers import VectorIndexRetriever
 from llama_index.llms.openai import OpenAI
 from llama_index.agent.openai import OpenAIAgent
 from llama_index.core.schema import Document
-from llama_index.core.tools import FunctionTool
+from llama_index.core.tools import FunctionTool, QueryEngineTool, ToolMetadata
 from thefuzz import process
 import pdfplumber
 import httpx
 from pyImxOtl import OtlImx
 from pyImxOtl.otl.generic import OtlReleaseStage
 from pyImxOtl.otl.uitwisselscopes import OtlUitwisselscope
+from llama_index.core.query_engine import SubQuestionQueryEngine, CustomQueryEngine
 
 # load environment variables from the .env file
 load_dotenv()
@@ -104,8 +105,8 @@ def extract_requirement_text(ovs_name, eis_number):
 # function to retrieve the instruction and referenced file name (if applicable)
 def get_instruction(query):
     """Takes a kenmerk as input and returns the correct fill-in instruction, including consulting the PDF if needed."""
-    #response = find_objects(query, object_list)
-    response = query
+    response = find_objects(query, object_list)
+    #response = query
     if response:
         matched_object = response.strip().lower()
         print(f"Matched Object: {matched_object}") 
@@ -216,18 +217,73 @@ def add_numbers(a: int, b: int) -> int:
     return a + b
 
 # setting up the tools
-instruction_tool = FunctionTool.from_defaults(fn=get_instruction, return_direct=True)
-uitwisselscope_tool = FunctionTool.from_defaults(fn=uitwisselscope, return_direct=True)
-add_tool = FunctionTool.from_defaults(fn=add_numbers, return_direct=True)
+class ToolQueryEngine(CustomQueryEngine):
+    """Custom query engine that wraps a FunctionTool."""
+
+    function_tool: FunctionTool
+
+    def __init__(self, fn):
+        # Initialize the FunctionTool first
+        function_tool_instance = FunctionTool.from_defaults(fn=fn, return_direct=True)
+        
+        # Pass it explicitly to CustomQueryEngine
+        super().__init__(function_tool=function_tool_instance)
+
+    def custom_query(self, *args, **kwargs):
+        """Executes the function tool using provided arguments."""
+        return self.function_tool.fn(*args, **kwargs)
+
+add_tool = ToolQueryEngine(fn=add_numbers)
+uitwisselscope_tool = ToolQueryEngine(fn=uitwisselscope)
+instruction_tool = ToolQueryEngine(fn=get_instruction)
+
+query_engine_tools = [
+    QueryEngineTool(
+        query_engine=add_tool,
+        metadata=ToolMetadata(
+            name='Add numbers', 
+            description="Takes as input two numbers and returns their sum.")
+    ),
+    QueryEngineTool(
+        query_engine=uitwisselscope_tool,
+        metadata=ToolMetadata(
+            name='Uitwisselscope', 
+            description="Takes as input an object name and returns its uitwisselscope.")
+    ),
+    QueryEngineTool(
+        query_engine=instruction_tool,
+        metadata=ToolMetadata(
+            name='Invulinstructie', 
+            description="Takes as input an feature name and returns its fill-in instructions.")
+    ),
+]
+
+# maak de Sub Question Query Engines
+query_engine = SubQuestionQueryEngine.from_defaults( # of RouterQueryEngine
+    query_engine_tools=query_engine_tools
+    )
+
+# Maak de Chatbot Agent
+query_engine_tool = QueryEngineTool(
+    query_engine=query_engine,
+    metadata=ToolMetadata(
+        name="sub_question_query_engine",
+        description=(
+            "Wordt gebruikt bij vragen over de BID manager."
+        ),
+    ),
+)
+
+tools = query_engine_tools + [query_engine_tool]
 
 # initializing agent
-agent = OpenAIAgent.from_tools([add_tool, instruction_tool, uitwisselscope_tool])
+agent = OpenAIAgent.from_tools(tools)
 
 # example kenmerken voor invulinstructies
 # standStillDetectionInterval
 # permissionToDriveTimer
 # puic
-#instruction = agent.query("Hoe vul ik puic in?")
+#instruction = agent.query("hoe vul ik puic in?")
 
-instruction = agent.query("hoe vul ik puic in?")
+instruction = query_engine.query("hoe vul ik puic in?")
 print(instruction)
